@@ -19,8 +19,6 @@ backports.tempfile==1.0
 backports.weakref==1.0.post1
 beautifulsoup4==4.8.0
 bitarray==1.0.1
-bitfinex-api-py==1.1.4
-bitfinex-v2==1.7.1
 bitmex==0.2.2
 bkcharts==0.2
 bleach==3.1.0
@@ -205,7 +203,6 @@ swagger-spec-validator==2.5.0
 sympy==1.4
 tables==3.5.2
 tblib==1.4.0
-telegram==0.0.1
 terminado==0.8.2
 testpath==0.4.2
 toolz==0.10.0
@@ -234,3 +231,4 @@ yarl==1.4.2
 zict==1.0.0
 zipp==0.6.0
 zope.interface==5.1.0
+pip3 install --upgrade --user git+https://github.com/qtrade-exchange/qtrade-py-client.git
