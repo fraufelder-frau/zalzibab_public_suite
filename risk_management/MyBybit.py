@@ -6,8 +6,7 @@
 
 from datetime import datetime, timedelta, timezone
 from sympy import symbols, Eq, solve
-from Bybit import bybit
-from qtrade_client.api import QtradeAPI
+from bybit import bybit
 import requests
 import ast
 import os
