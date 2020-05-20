@@ -1,0 +1,7 @@
+bybit==0.2.2
+bitmex==0.2.2
+mplfinance==0.12.4a0
+sympy==1.4
+pandas==0.25.1
+pip==19.2.3
+
