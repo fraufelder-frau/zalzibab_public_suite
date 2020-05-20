@@ -20,6 +20,7 @@ import bravado.exception
 import io
 import time
 import decimal
+import sys
 
 #Pull Bucketed Trade Data
 def bybit_kline_data(client, interval, timestamp):
