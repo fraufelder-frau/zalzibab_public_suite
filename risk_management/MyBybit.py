@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[ ]:
+
+
 from datetime import datetime, timedelta, timezone
 from sympy import symbols, Eq, solve
-from bybit import bybit
-from bitmex import bitmex
+from Bybit import bybit
 from qtrade_client.api import QtradeAPI
 import requests
 import ast
@@ -21,6 +23,9 @@ import decimal
 from MyFunctions import *
 
 
+# In[ ]:
+
+
 #Pull Bucketed Trade Data
 def bybit_kline_data(client, interval, timestamp):
     params = {"symbol": 'BTCUSD',
@@ -29,6 +34,9 @@ def bybit_kline_data(client, interval, timestamp):
           "limit": "1"}
     pull_data = client.Kline.Kline_get(**params).result()
     return pull_data
+
+
+# In[ ]:
 
 
 def position_size(entry, stop, balance, risk, target, takerFee, makerFee, order_type):
@@ -57,10 +65,16 @@ def position_size(entry, stop, balance, risk, target, takerFee, makerFee, order_
     return size, entry_value, stop_value, target_value
 
 
+# In[ ]:
+
+
 def risk_amount_XBT(entry_value, stop_value, size):
     risk_amount = (size*(entry_value - stop_value))
     risk_amount = float(round(risk_amount, 8))
     return risk_amount
+
+
+# In[ ]:
 
 
 def reward_amount_XBT(entry_value, target_value, size):
@@ -69,9 +83,15 @@ def reward_amount_XBT(entry_value, target_value, size):
     return reward_amount
 
 
+# In[ ]:
+
+
 def r_calc(reward_amount, risk_amount):
     r_r = reward_amount/risk_amount
     return r_r
+
+
+# In[ ]:
 
 
 def new_trade(client, contract, size, entry, target, stop, order_type):
@@ -93,6 +113,9 @@ def new_trade(client, contract, size, entry, target, stop, order_type):
         client.Conditional.Conditional_new(side=stop_side, base_price=round(float(client.Market.Market_symbolInfo(symbol='BTCUSD').result()[0]['result'][0]['mark_price']), 0),  symbol=contract, order_type='Limit', qty=size, time_in_force='ImmediateOrCancel', price=target, stop_px=stop_limit_trigger, close_on_trigger=True).result()
     client.Conditional.Conditional_new(side=stop_side, base_price=round(float(client.Market.Market_symbolInfo(symbol='BTCUSD').result()[0]['result'][0]['mark_price']), 0),  symbol=contract, order_type='Market', qty=size, time_in_force='ImmediateOrCancel', stop_px=stop, close_on_trigger=True).result()
     return None
+
+
+# In[ ]:
 
 
 def open_positions(client, contract):
@@ -130,6 +153,9 @@ def open_positions(client, contract):
     return bit
 
 
+# In[ ]:
+
+
 def close_position(client, contract_to_view):
     orderQty = client.Positions.Positions_myPositionV2(symbol=contract_to_view).result()[0]['result']['size']
     side = client.Positions.Positions_myPositionV2(symbol=contract_to_view).result()[0]['result']['side']
@@ -138,6 +164,9 @@ def close_position(client, contract_to_view):
     elif side == 'Sell':
         client.Order.Order_newV2(symbol=contract_to_view, side='Buy', order_type='Market', qty=orderQty, time_in_force='GoodTillCancelled').result()
     return print(contract_to_view+' Position Closed')
+
+
+# In[ ]:
 
 
 def amend_order(client, new_stop, new_target, contract_to_view):
@@ -179,6 +208,9 @@ def amend_order(client, new_stop, new_target, contract_to_view):
         client.Order.Order_replace(order_id=close_id, symbol=contract_to_view, p_r_price=new_target).result()
         print('Close Amended to '+usd_str(new_target))
     return None
+
+
+# In[ ]:
 
 
 def take_profit_order(client, take_profit, new_stop, new_target, contract_to_view):

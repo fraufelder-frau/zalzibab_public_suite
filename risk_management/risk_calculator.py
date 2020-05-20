@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[ ]:
+
+
 import MyBitmex as bm
 import MyBybit as bb
 from MyFunctions import *
+
+
+# In[ ]:
 
 
 print('Begin Risk Manager')
@@ -277,6 +283,9 @@ while True:
                     bb.new_trade(client, contract, size, entry, target, stop, order_type)
                     print('TRADE EXECUTED')
                     continue
+
+
+# In[ ]:
 
 
 
