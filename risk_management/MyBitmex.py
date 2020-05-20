@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[ ]:
+
+
 from datetime import datetime, timedelta, timezone
 from sympy import symbols, Eq, solve
-from bybit import bybit
 from bitmex import bitmex
-from qtrade_client.api import QtradeAPI
 import requests
 import ast
 import os
@@ -22,6 +23,9 @@ import sys
 from MyFunctions import *
 
 
+# In[ ]:
+
+
 def close_position(client, contract_to_view):
     resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': contract_to_view})).result()[0][0]
     if resp['currentQty'] > 0:
@@ -30,6 +34,9 @@ def close_position(client, contract_to_view):
         client.Order.Order_new(symbol=contract_to_view, execInst='Close', side='Buy').result()
     client.Order.Order_cancelAll(symbol=contract_to_view).result()
     return print(contract_to_view+' Position Closed')
+
+
+# In[ ]:
 
 
 def open_positions(client):
@@ -82,10 +89,16 @@ def open_positions(client):
     return postions
 
 
+# In[ ]:
+
+
 def active_contracts(client):
     contracts = requests.get('https://www.bitmex.com/api/v1/instrument/active').json()
     contract_list = [x['symbol'] for x in bitmex_contracts]
     return contract_list
+
+
+# In[ ]:
 
 
 def new_trade(client, contract, size, entry, target, stop, order_type):
@@ -104,6 +117,9 @@ def new_trade(client, contract, size, entry, target, stop, order_type):
         client.Order.Order_new(symbol=contract, stopPx=stop_limit_trigger, price=target, execInst=str('LastPrice, ReduceOnly'), orderQty=(size*-1), ordType='StopLimit').result()
         client.Order.Order_new(symbol=contract, stopPx=stop, execInst=str('LastPrice, ReduceOnly'), orderQty=(size*-1), ordType='Stop').result()
     return None
+
+
+# In[ ]:
 
 
 def amend_order(client, new_stop, new_target, contract_to_view):
@@ -144,6 +160,9 @@ def amend_order(client, new_stop, new_target, contract_to_view):
     return print('\n'+'Updated Positions'), print_dict(open_positions(client))
 
 
+# In[ ]:
+
+
 def take_profit_order(client, take_profit, new_stop, new_target, contract_to_view):
     resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': contract_to_view})).result()[0][0]
     take_profit_size = round(((resp['currentQty']*(int(take_profit)/100))*-1), 0)
@@ -159,10 +178,16 @@ def take_profit_order(client, take_profit, new_stop, new_target, contract_to_vie
     return print('\n'+'Updated Positions'), print_dict(open_positions(client))
 
 
+# In[ ]:
+
+
 def risk_amount_XBT(entry_value, stop_value, size):
     risk_amount = (size*(entry_value - stop_value))
     risk_amount = float(round(risk_amount, 8))
     return risk_amount
+
+
+# In[ ]:
 
 
 def reward_amount_XBT(entry_value, target_value, size):
@@ -171,9 +196,15 @@ def reward_amount_XBT(entry_value, target_value, size):
     return reward_amount
 
 
+# In[ ]:
+
+
 def r_calc(reward_amount, risk_amount):
     r_r = reward_amount/risk_amount
     return r_r
+
+
+# In[ ]:
 
 
 def position_size(entry, stop, balance, risk, target, takerFee, makerFee, order_type):
