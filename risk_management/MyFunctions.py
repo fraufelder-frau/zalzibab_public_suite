@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
 from datetime import datetime, timedelta, timezone
 from sympy import symbols, Eq, solve
 from bybit import bybit
@@ -23,15 +20,9 @@ import decimal
 import sys
 
 
-# In[ ]:
-
-
 def btc_float_round(value):
     rounded_value = round(value, 8)
     return rounded_value
-
-
-# In[ ]:
 
 
 def btc_str2float_round(value):
@@ -39,16 +30,10 @@ def btc_str2float_round(value):
     return rounded_value
 
 
-# In[ ]:
-
-
 #Legible format for BTC values
 def btc_str(value):
     value = "{:,.8f}".format(value)
     return value
-
-
-# In[ ]:
 
 
 #Legible format for USD values
@@ -68,23 +53,14 @@ def usd_str(value):
     return value
 
 
-# In[ ]:
-
-
 def tz_to_timestamp(str_date):
     new_time = datetime.timestamp(datetime.strptime(str_date, '%Y-%m-%dT%H:%M:%S.%fZ'))
     return new_time
 
 
-# In[ ]:
-
-
 def tz_to_str(tz_date, str_format):
     str_time = datetime.strftime(datetime.strptime(tz_date, '%Y-%m-%dT%H:%M:%S.%fZ'), str_format)
     return str_time
-
-
-# In[ ]:
 
 
 def find_file(file_type):
@@ -96,9 +72,6 @@ def find_file(file_type):
     for (dirpath, dirnames, filenames) in walk(file_path):
         f.extend(filenames)
         return f
-
-
-# In[ ]:
 
 
 def check_credentials(exchange):
@@ -187,9 +160,6 @@ def check_credentials(exchange):
     return print('\n'+exchange+' Credentials Verified'), client, (credentials['bot_token'], credentials['bot_chatID'])
 
 
-# In[ ]:
-
-
 #Telegram Text Alert
 def telegram_sendText(bot_credentials, bot_message):
     bot_token = bot_credentials[0]
@@ -197,9 +167,6 @@ def telegram_sendText(bot_credentials, bot_message):
     send_text = 'https://api.telegram.org/bot'+bot_token+'/sendMessage?chat_id='+bot_chatID+'&parse_mode=Markdown&text='+bot_message
     response = requests.get(send_text)
     return response.json()
-
-
-# In[ ]:
 
 
 #Telegram Image Alert
@@ -213,9 +180,6 @@ def telegram_sendImage(bot_credentials, image):
     return r
 
 
-# In[ ]:
-
-
 def telegram_sendFile(bot_credentials, file):
     bot_token = bot_credentials[0]
     bot_chatID = bot_credentials[1]
@@ -226,16 +190,10 @@ def telegram_sendFile(bot_credentials, file):
     return r
 
 
-# In[ ]:
-
-
 def float_range(start, stop, step):
     while start < stop:
         yield float(start)
         start += decimal.Decimal(step)
-
-
-# In[ ]:
 
 
 def input_price(client, dialogue, valid_ticks):
@@ -252,9 +210,6 @@ def input_price(client, dialogue, valid_ticks):
     return price
 
 
-# In[ ]:
-
-
 #Read .txt files
 def load_file(file):
     temp_list = []
@@ -264,9 +219,6 @@ def load_file(file):
     load = [ast.literal_eval(i) for i in temp_list][0]
     f.close()
     return load
-
-
-# In[ ]:
 
 
 def y_n_prompt():
@@ -283,9 +235,6 @@ def y_n_prompt():
     return response
 
 
-# In[ ]:
-
-
 #Write to .txt file
 def save_file(file, item):
     with open(file, mode="w") as outfile:
@@ -293,23 +242,14 @@ def save_file(file, item):
     return None
 
 
-# In[ ]:
-
-
 #Sort tuples by value by index
 def sortTuple(tup, index):
     return(sorted(tup, key = lambda x: x[index], reverse=True))
 
 
-# In[ ]:
-
-
 #Remove duplicate values from sorted lists
 def sorted_list(list_to_sort):
     return list(dict.fromkeys(list_to_sort))
-
-
-# In[ ]:
 
 
 def print_dict(dict_item):
@@ -323,9 +263,6 @@ def print_dict(dict_item):
             print(str(k)+': '+str(v))
         print('\n')
     return None
-
-
-# In[ ]:
 
 
 #User promp based list element selection by index
@@ -345,18 +282,12 @@ def list_user_prompt(initial_dialogue, list_to_view):
     return resp
 
 
-# In[ ]:
-
-
 def create_directory(directory):
     if os.path.exists(str(sys.path[0])+'/'+directory+'/') == False:
         directory = directory
         path = os.path.join(str(sys.path[0]), directory)
         os.mkdir(path)
     return None
-
-
-# In[ ]:
 
 
 def sleep_time(timeframe, count, second, minute):
@@ -369,9 +300,6 @@ def sleep_time(timeframe, count, second, minute):
         start_loop = (now + delta).replace(microsecond=0, second=second, minute=minute)
     sleep_time = (start_loop - now).total_seconds()
     return sleep_time
-
-
-# In[ ]:
 
 
 def getDuration(start, end, interval = "default"):
