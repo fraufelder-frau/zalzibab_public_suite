@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from sympy import symbols, Eq, solve
 from bybit import bybit
 from bitmex import bitmex
-from qtrade_client.api import QtradeAPI
 import requests
 import ast
 import os
@@ -260,7 +259,7 @@ def check_credentials(exchange):
                 if exchange != 'qTrade':
                     print('Please Enter Your '+exchange+' API Secret')
                     credentials['api_secret'] = str(input('> '))
-        if exchange != 'qTrade' and credentials['api_secret'] == 'TTT':
+        if credentials['api_secret'] == 'TTT':
             print('\n')
             print('Please Enter Your '+exchange+' API Secret')
             credentials['api_secret'] = str(input('> '))
@@ -318,13 +317,6 @@ def check_credentials(exchange):
             client = bybit(test=False,api_key=credentials['api_key'],api_secret=credentials['api_secret'])
             resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
             if resp == 'invalid api_key':
-                print('Invalid Credentials'+'\n')
-                continue
-        elif exchange == 'qTrade':
-            try:
-                client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
-                client.get("/v1/user/me")
-            except:
                 print('Invalid Credentials'+'\n')
                 continue
         break
