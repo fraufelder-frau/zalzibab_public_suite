@@ -149,16 +149,22 @@ def check_credentials(exchange):
             continue
         break
         save_credentials = save_file(str(sys.path[0])+'/credentials/'+credentials_file, credentials)
-        credentials_file = [x for x in find_file('credentials') if exchange in x][0]
-        credentials = load_file(str(sys.path[0])+'/credentials/'+credentials_file)
-    return print('\n'+exchange+' Credentials Verified'), client, (credentials['bot_token'], credentials['bot_chatID'])
+    return print('\n'+exchange+' Credentials Verified')
 
 
-def load_credentials(exchange):
+def load_credentials(exchange, my_token, myID):
     credentials_file = [x for x in find_file('credentials') if exchange in x][0]
     credentials = load_file(str(sys.path[0])+'/credentials/'+credentials_file)
     client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
-    return client, (credentials['bot_token'], credentials['bot_chatID'])
+    if credentials['bot_token'] == 'YYY':
+        my_token = None
+    else:
+        my_token = credentials['bot_token']
+    if credentials['bot_chatID'] == 'ZZZ':
+        myID = None
+    else:
+        myID = credentials['bot_chatID']
+    return client, (my_token, myID)
 
 
 #Telegram Text Alert

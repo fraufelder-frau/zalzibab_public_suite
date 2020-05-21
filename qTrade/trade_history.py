@@ -11,6 +11,8 @@ warnings.simplefilter("ignore")
 
 
 exchange = 'qTrade'
+my_token = ''
+myID = ''
 verification = check_credentials(exchange)
 create_directory('reports')
 csv_directory = str(sys.path[0])+'/reports/'
@@ -26,7 +28,7 @@ while True:
 while True:
     msg = ''
     date = datetime.utcnow().strftime('%m-%d-%Y %H:%M:%S')
-    verification = load_credentials(exchange);
+    verification = load_credentials(exchange, my_token, myID);
     logger.info('Loop Started')
     client = verification[0]
     bot_credentials = verification[1]
@@ -103,7 +105,7 @@ while True:
                 clean_dict['Price'] = new_executions[x][y]['price']
                 clean_dict['Base'] = new_executions[x][y]['base_amount']
                 all_new_trades.append(clean_dict)
-        if bot_credentials is not None:
+        if bot_credentials[0] is not None:
             msg = 'Updated Trades'+'\n'+date+'\n'+'\n'      
             msg += dict_to_msg(all_new_trades)
             

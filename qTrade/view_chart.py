@@ -6,6 +6,8 @@ from MyFunctions import *
 
 
 exchange = 'qTrade'
+my_token = ''
+myID = ''
 verification = check_credentials(exchange)
 
 
@@ -13,7 +15,7 @@ while True:
     create_directory('charts')
     chart_directory = str(sys.path[0])+'/charts/'
     date = datetime.utcnow().strftime('%m-%d-%Y %H:%M:%S')
-    verification = load_credentials(exchange);
+    verification = load_credentials(exchange, my_token, myID);
     client = verification[0]
     bot_credentials = verification[1]
 
@@ -110,7 +112,7 @@ while True:
     plt.clf();
     filename = chart_directory+market_to_view+'_'+timeframe+'_'+str(lookback_length)+'.png'
 
-    if bot_credentials is not None:
+    if bot_credentials[0] is not None:
         print('Send Chart To Telegram?')
         send_chart = y_n_prompt()
         if send_chart == 'Yes':
