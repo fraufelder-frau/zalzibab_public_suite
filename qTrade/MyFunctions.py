@@ -22,6 +22,10 @@ from matplotlib.pyplot import figure
 import matplotlib
 from matplotlib import gridspec
 import matplotlib.ticker as mtick
+from mplfinance.original_flavor import candlestick_ohlc
+import warnings
+warnings.filterwarnings("ignore")
+import matplotlib.dates as mdates
 
 
 def btc_float_round(value):
