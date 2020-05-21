@@ -93,7 +93,7 @@ while True:
         telegram_sendText(bot_credentials, msg)
         for x in filenames:
             telegram_sendImage(bot_credentials, x)
-    time.sleep(sleep_time('hour', 1, 10, 0))
+    time.sleep(sleep_time('hour', 1, 5, 0))
 
 
 

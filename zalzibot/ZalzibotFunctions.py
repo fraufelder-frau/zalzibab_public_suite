@@ -467,7 +467,7 @@ def bybit_daily(contracts, filenames, date):
     ax.set_axisbelow(True)
     plt.grid(b=None, which='major', axis='both')
     plt.ylabel('Contract', fontdict={'fontsize': 32})
-    plt.title('Bybit Daily Returns '+(datetime.utcnow()-timedelta(days=1)).strftime('%m-%d-%y'), fontdict={'fontsize': 32})
+    plt.title('Bybit Daily Returns '+(datetime.utcnow()-timedelta(days=1)).strftime('%m-%d-%Y'), fontdict={'fontsize': 32})
     plt.xlabel('Percent Return', fontdict={'fontsize': 32})
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(14)
