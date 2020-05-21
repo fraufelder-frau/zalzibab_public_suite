@@ -1,31 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from MyFunctions import *
-import ZalzibotFunctions as zf
-import pandas as pd
-import requests
-from datetime import datetime, timezone, timedelta
-import pytz
-import matplotlib.pyplot as plt
-import numpy as np
-import time
-import dateutil.parser
-from matplotlib.pyplot import figure
-import matplotlib
-from matplotlib import gridspec
-import matplotlib.ticker as mtick
-import os
+from ZalzibotFunctions import *
 import logging
-import sys
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, filename=sys.path[0]+'zalzibot.log', format='%(asctime)s :: %(levelname)s :: %(message)s')
 
 
-bot_credentials = zf.tg_bot_credentials();
+bot_credentials = tg_bot_credentials();
 
 
 while True:
+    create_directory('charts')
+    chart_directory = str(sys.path[0])+'/charts/'
     date = datetime.utcnow().strftime('%m-%d-%Y %H:%M')
     filenames = []
     try:
@@ -44,32 +31,27 @@ while True:
     if os.path.exists('open_interest') == True:
         if date[-2:] == '00':
             old_data = load_file('open_interest')
-            current_data = zf.new_xbt_data('open_interest', bitmex_contracts, date)
+            current_data = new_xbt_data('open_interest', bitmex_contracts, date)
             changes = {}
             for k, v in current_data.items():
                 if type(v) != str:
                     changes[k] = current_data[k] - old_data[k]
 
-            zf.dict_formatting(old_data)
-            zf.dict_formatting(current_data)
-            zf.dict_formatting(changes)
+            dict_formatting(old_data)
+            dict_formatting(current_data)
+            dict_formatting(changes)
 
             msg = 'Previous Data'+'\n'
-            for k, v in old_data.items():
-                msg += k.upper()+': '+v+'\n'
-            msg += '\n'
+            msg += dict_to_msg(old_data)
 
             msg += 'Current Data'+'\n'
-            for k, v in current_data.items():
-                msg += k.upper()+': '+v+'\n'
-            msg += '\n'
+            msg += dict_to_msg(new_data)
 
             msg += 'Degree of Change'+'\n'
-            for k, v in changes.items():
-                msg += k.upper()+': '+v+'\n'
+            msg += dict_to_msg(changes)
             telegram_sendText(bot_credentials, msg)
     else:
-        zf.new_xbt_data('open_interest', bitmex_contracts, date)
+        new_xbt_data('open_interest', bitmex_contracts, date)
         logger.info('Initial Run Complete')
     funding_intervals = ['04:00', '12:00', '20:00']
     daily_update = '00:00'
@@ -77,17 +59,17 @@ while True:
     if date[-5:] in funding_intervals:
         chart_update = True
         msg = 'Bitmex 8hr Funding Update'
-        zf.funding_rate(bitmex_contracts, filenames, date)
+        funding_rate(bitmex_contracts, filenames, date, chart_directory)
         logger.info('Funding Chart Sent')
     elif date[-5:] == daily_update:
         chart_update = True
         msg = 'Daily Update'
-        zf.open_interest(bitmex_contracts, filenames, date)
-        zf.open_value(bitmex_contracts, filenames, date)
-        zf.bitmex_daily(bitmex_contracts, filenames, date)
-        zf.ftx_daily(ftx_contracts, filenames, date)
-        zf.bybit_daily(bybit_contracts, filenames, date)
-        zf.daily_volume(filenames, date)
+        open_interest(bitmex_contracts, filenames, date, chart_directory)
+        open_value(bitmex_contracts, filenames, date, chart_directory)
+        bitmex_daily(bitmex_contracts, filenames, date, chart_directory)
+        ftx_daily(ftx_contracts, filenames, date, chart_directory)
+        bybit_daily(bybit_contracts, filenames, date, chart_directory)
+        daily_volume(filenames, date, chart_directory)
         logger.info('Daily Charts Sent')
     if chart_update:   
         telegram_sendText(bot_credentials, msg)

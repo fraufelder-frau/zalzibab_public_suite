@@ -1,24 +1,135 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from MyFunctions import *
-import pandas as pd
 import requests
 from datetime import datetime, timezone, timedelta
-import pytz
 import matplotlib.pyplot as plt
 import numpy as np
 import time
-import dateutil.parser
 from matplotlib.pyplot import figure
 import matplotlib
 from matplotlib import gridspec
 import matplotlib.ticker as mtick
 import os
-import logging
+from os import walk
 import sys
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, filename=sys.path[0]+'/zalzibot.log', format='%(asctime)s :: %(levelname)s :: %(message)s')
+import ast
+
+
+#Legible format for BTC values
+def btc_str(value):
+    value = "{:,.8f}".format(value)
+    return value
+
+
+#Legible format for USD values
+def usd_str(value):
+    if '.' in str(value):
+        if value < 0:
+            value = value*-1
+            value = '-'+"${:,.2f}".format(value)
+        else:
+            value = "${:,.2f}".format(value)
+    else:
+        if value < 0:
+            value = value*-1
+            value = '-'+"${:,}".format(value)
+        else:
+            value = "${:,}".format(value)
+    return value
+
+
+def find_file(file_type):
+    f = []
+    if file_type == 'credentials':
+        file_path = str(sys.path[0])+'/credentials'
+    else:
+        file_path = str(sys.path[0])+'/configurations'
+    for (dirpath, dirnames, filenames) in walk(file_path):
+        f.extend(filenames)
+        return f
+
+
+#Read .txt files
+def load_file(file):
+    temp_list = []
+    f = open(file, "r")
+    for x in f:
+        temp_list.append(x.rstrip('\n'))
+    load = [ast.literal_eval(i) for i in temp_list][0]
+    f.close()
+    return load
+
+
+def y_n_prompt():
+    while True:
+        y_n_responses = ['Yes', 'No']
+        for (x, y) in enumerate(y_n_responses):
+            print(str(x)+': '+y)
+        response = y_n_responses[int(input('> '))]
+        if response not in y_n_responses:
+            print('Invalid Selection'+'\n')
+            continue
+        else:
+            break
+    return response
+
+
+#Write to .txt file
+def save_file(file, item):
+    with open(file, mode="w") as outfile:
+        outfile.write(str(item))
+    return None
+
+
+#Sort tuples by value by index
+def sortTuple(tup, index):
+    return(sorted(tup, key = lambda x: x[index], reverse=True))
+
+
+#Remove duplicate values from sorted lists
+def sorted_list(list_to_sort):
+    return list(dict.fromkeys(list_to_sort))
+
+
+def sleep_time(timeframe, count, second, minute):
+    now = datetime.utcnow()
+    if timeframe == 'minute':
+        delta = timedelta(minutes=count)
+        start_loop = (now + delta).replace(microsecond=0, second=second)
+    elif timeframe == 'hour':
+        delta = timedelta(hours=count)
+        start_loop = (now + delta).replace(microsecond=0, second=second, minute=minute)
+    sleep_time = (start_loop - now).total_seconds()
+    return sleep_time
+
+
+def create_directory(directory):
+    if os.path.exists(str(sys.path[0])+'/'+directory+'/') == False:
+        directory = directory
+        path = os.path.join(str(sys.path[0]), directory)
+        os.mkdir(path)
+    return None
+
+
+#Telegram Text Alert
+def telegram_sendText(bot_credentials, bot_message):
+    bot_token = bot_credentials[0]
+    bot_chatID = bot_credentials[1]
+    send_text = 'https://api.telegram.org/bot'+bot_token+'/sendMessage?chat_id='+bot_chatID+'&parse_mode=Markdown&text='+bot_message
+    response = requests.get(send_text)
+    return response.json()
+
+
+#Telegram Image Alert
+def telegram_sendImage(bot_credentials, image):
+    bot_token = bot_credentials[0]
+    bot_chatID = bot_credentials[1]
+    url = 'https://api.telegram.org/bot'+bot_token+'/sendPhoto';
+    files = {'photo': open(image, 'rb')}
+    data = {'chat_id' : bot_chatID}
+    r = requests.post(url, files=files, data=data)
+    return r
 
 
 def tg_bot_credentials():
@@ -89,14 +200,6 @@ def new_xbt_data(file, bitmex_contracts, date):
     return xbt
 
 
-def convert_to_epoch(time):
-    timestamp = datetime.strptime(time, '%Y-%m-%d')
-    timezone = pytz.timezone("Asia/Singapore")
-    d_aware = timezone.localize(timestamp)
-    timestamp = d_aware.timestamp()
-    return timestamp
-
-
 def dict_formatting(dict_item):
     dict_item['price'] = usd_str(dict_item['price'])
     dict_item['openInterest'] = usd_str(dict_item['openInterest'])
@@ -106,7 +209,7 @@ def dict_formatting(dict_item):
     return dict_item
 
 
-def open_value(contracts, filenames, date):
+def open_value(contracts, filenames, date, chart_directory):
     open_value_list = [(x['symbol'], round(x['openValue']/100000000, 2)) for x in contracts if 'XBT' not in x['symbol'] and 'USD' not in x['symbol']]
 
     if len(open_value_list) > 7:
@@ -151,7 +254,7 @@ def open_value(contracts, filenames, date):
         for i, v in enumerate(y):
             ax.text(v, i, '{:,.2f}'.format(v), color='black', fontweight='bold')
         plt.tight_layout(True)
-        plt.savefig('short_open_value.png',bbox_inches='tight',dpi=100)
+        plt.savefig(chart_directory+'short_open_value.png',bbox_inches='tight',dpi=100)
         plt.clf();
 
         labels, ys = zip(*long_open_value_list)
@@ -176,11 +279,11 @@ def open_value(contracts, filenames, date):
         for i, v in enumerate(y):
             ax.text(v, i, '{:,.2f}'.format(v), color='black', fontweight='bold')
         plt.tight_layout(True)
-        plt.savefig('long_open_value.png',bbox_inches='tight',dpi=100)
+        plt.savefig(chart_directory+'long_open_value.png',bbox_inches='tight',dpi=100)
         plt.clf();
 
-        filenames.append('short_open_value.png')
-        filenames.append('long_open_value.png')
+        filenames.append(chart_directory+'short_open_value.png')
+        filenames.append(chart_directory+'long_open_value.png')
 
     else:
         all_open_value_list = []
@@ -211,13 +314,13 @@ def open_value(contracts, filenames, date):
         for i, v in enumerate(y):
             ax.text(v, i, '{:,.2f}'.format(v), color='black', fontweight='bold', fontsize=14)
         plt.tight_layout(True)
-        plt.savefig('open_value.png',bbox_inches='tight',dpi=100)
+        plt.savefig(chart_directory+'open_value.png',bbox_inches='tight',dpi=100)
         plt.clf();
 
-        filenames.append('open_value.png')
+        filenames.append(chart_directory+'open_value.png')
 
 
-def open_interest(contracts, filenames, date):
+def open_interest(contracts, filenames, date, chart_directory):
     open_interest_list = [(x['symbol'], x['openInterest']) for x in contracts if 'XBT' in x['symbol'] or 'USD' in x['symbol']]
     
     all_open_interest = []
@@ -254,13 +357,13 @@ def open_interest(contracts, filenames, date):
     for i, v in enumerate(y):
         ax.text(v, i, '${:,.0f}'.format(v), color='black', fontweight='bold', fontsize=14)
     plt.tight_layout(True)
-    plt.savefig('open_interest.png',bbox_inches='tight',dpi=100)
+    plt.savefig(chart_directory+'open_interest.png',bbox_inches='tight',dpi=100)
     plt.clf();
 
-    filenames.append('open_interest.png')
+    filenames.append(chart_directory+'open_interest.png')
 
 
-def funding_rate(contracts, filenames, date):
+def funding_rate(contracts, filenames, date, chart_directory):
     funding_rate_list = []
     for x in range(len(contracts)):
         try:
@@ -302,13 +405,13 @@ def funding_rate(contracts, filenames, date):
     for i, v in enumerate(y):
         ax.text(v, i, '{:,.4f}%'.format(v), color='black', fontweight='bold', fontsize=14)
     plt.tight_layout(True)
-    plt.savefig('funding_rate.png',bbox_inches='tight',dpi=100)
+    plt.savefig(chart_directory+'funding_rate.png',bbox_inches='tight',dpi=100)
     plt.clf();
     
-    filenames.append('funding_rate.png')
+    filenames.append(chart_directory+'funding_rate.png')
 
 
-def daily_volume(filenames, date):
+def daily_volume(filenames, date, chart_directory):
     #GET BITMEX VOLUME DATA
     startTime = datetime.strftime(datetime.utcnow(), '%Y-%m-%d')
     bitmex_daily = requests.get('https://www.bitmex.com/api/v1/trade/bucketed?binSize=1d&partial=false&symbol=XBTUSD&count=1&reverse=false&startTime='+startTime+'&endTime='+startTime).json()[0]
@@ -352,13 +455,13 @@ def daily_volume(filenames, date):
               bbox_to_anchor=(1, 0, 0.5, 1))
     plt.title((datetime.utcnow()-timedelta(days=1)).strftime('%m-%d-%Y')+' DAILY USD VOLUME'+'\n'+total_volume+' TOTAL')
     plt.tight_layout()
-    plt.savefig('total_volume.png')
+    plt.savefig(chart_directory+'total_volume.png')
     plt.clf();
     
-    filenames.append('total_volume.png')
+    filenames.append(chart_directory+'total_volume.png')
 
 
-def bitmex_daily(contracts, filenames, date):
+def bitmex_daily(contracts, filenames, date, chart_directory):
     startTime = datetime.strftime(datetime.utcnow(), '%Y-%m-%d')
     bitmex_contract_list = [x['symbol'] for x in contracts]
     bitmex_daily_returns = []
@@ -393,13 +496,13 @@ def bitmex_daily(contracts, filenames, date):
         tick.label.set_fontsize(14)
     for i, v in enumerate(y):
         ax.text(v, i, '{:,.2f}%'.format(v), color='black', fontweight='bold', fontsize=14)
-    plt.savefig('bitmex_daily_returns.png',bbox_inches='tight',dpi=100)
+    plt.savefig(chart_directory+'bitmex_daily_returns.png',bbox_inches='tight',dpi=100)
     plt.clf();
 
-    filenames.append('bitmex_daily_returns.png')
+    filenames.append(chart_directory+'bitmex_daily_returns.png')
 
 
-def ftx_daily(contracts, filenames, date):
+def ftx_daily(contracts, filenames, date, chart_directory):
     ftx_contract_list = [x['name'] for x in contracts if 'PERP' in x['name'] and 'USDT' not in x['name']]
 
     ftx_daily_returns = []
@@ -434,13 +537,13 @@ def ftx_daily(contracts, filenames, date):
         tick.label.set_fontsize(14)
     for i, v in enumerate(y):
         ax.text(v, i, '{:,.2f}%'.format(v), color='black', fontweight='bold', fontsize=12)
-    plt.savefig('ftx_daily_returns_returns.png',bbox_inches='tight',dpi=100)
+    plt.savefig(chart_directory+'ftx_daily_returns_returns.png',bbox_inches='tight',dpi=100)
     plt.clf();
     
-    filenames.append('ftx_daily_returns_returns.png')
+    filenames.append(chart_directory+'ftx_daily_returns_returns.png')
 
 
-def bybit_daily(contracts, filenames, date):
+def bybit_daily(contracts, filenames, date, chart_directory):
     bybit_contract_list = [x['name'] for x in contracts if 'USDT' not in x['name']]
 
     bybit_daily_returns = []
@@ -475,11 +578,22 @@ def bybit_daily(contracts, filenames, date):
         tick.label.set_fontsize(14)
     for i, v in enumerate(y):
         ax.text(v, i, '{:,.2f}%'.format(v), color='black', fontweight='bold', fontsize=14)
-    plt.savefig('bybit_daily_returns.png',bbox_inches='tight',dpi=100)
+    plt.savefig(chart_directory+'bybit_daily_returns.png',bbox_inches='tight',dpi=100)
     plt.clf();
     
-    filenames.append('bybit_daily_returns.png')
+    filenames.append(chart_directory+'bybit_daily_returns.png')
 
 
-
+def dict_to_msg(dict_item):
+    dict_msg = ''
+    try:
+        for x in range(len(dict_item)):
+            for k, v in dict_item[x].items():
+                dict_msg += k.upper()+': '+str(v)+'\n'
+            dict_msg += '\n'
+    except KeyError:
+        for k, v in dict_item.items():
+            dict_msg += k.upper()+': '+str(v)+'\n'
+        dict_msg += '\n'
+    return dict_msg
 

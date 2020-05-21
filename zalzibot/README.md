@@ -6,7 +6,7 @@ Telgram Bot for Hourly Bitmex XBTUSD Updates, 8hr Bitmex Funding Updates, and Da
 
 ### One-Liner 1st Time VPS Setup
 
-sudo apt update && sudo apt upgrade -y && sudo apt install python3.7 -y && sudo apt-get install python3-pip -y && git clone https://github.com/zalzibab/zalzibab_public_suite.git
+sudo apt update && sudo apt upgrade -y && sudo apt install python3.7 -y && sudo apt-get install python3-pip -y && git clone https://github.com/zalzibab/zalzibab_public_suite.git && cd ~/zalzibab_public_suite/zalzibot
 
 ### How To Use
 
@@ -16,7 +16,7 @@ Create a new screen session > screen -S zalzibot
 
 Run the following one-liner
 
-sudo apt-get install python3-venv -y && python3 -m venv zalzibot && source zalzibot/bin/activate && python3 -m pip install -r ~/zalzibab_public_suite/zalzibot/requirements.txt && cd ~/zalzibab_public_suite/zalzibot && python zalzibot.py
+sudo apt-get install python3-venv -y && python3 -m venv zalzibot && source zalzibot/bin/activate && python3 -m pip install -r requirements.txt && python zalzibot.py
 
 When your session is complete, detach from the screen session with keyboard input > Ctrl+a d
 
