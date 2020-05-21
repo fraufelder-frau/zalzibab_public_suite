@@ -6,7 +6,7 @@ Position size calculator, order exececution, position management, for all XBT Bi
 
 ### One-Liner 1st Time VPS Setup
 
-sudo apt update && sudo apt upgrade -y && sudo apt install python3.7 -y && sudo apt-get install python3-pip -y && git clone https://github.com/zalzibab/zalzibab_public_suite.git
+sudo apt update && sudo apt upgrade -y && sudo apt install python3.7 -y && sudo apt-get install python3-pip -y && sudo apt-get install python3-venv -y && git clone https://github.com/zalzibab/zalzibab_public_suite.git && cd ~/zalzibab_public_suite/risk_management
 
 ### How To Use
 
@@ -16,7 +16,7 @@ Create a new screen session > screen -S risk_management
 
 Run the following one-liner
 
-sudo apt-get install python3-venv -y && python3 -m venv risk_management && source risk_management/bin/activate && python3 -m pip install -r ~/zalzibab_public_suite/risk_management/requirements.txt && cd ~/zalzibab_public_suite/risk_management && python risk_calculator.py
+python3 -m venv risk_management && source risk_management/bin/activate && python3 -m pip install -r requirements.txt && python risk_calculator.py
 
 When your session is complete, detach from the screen session with keyboard input > Ctrl+a d
 
