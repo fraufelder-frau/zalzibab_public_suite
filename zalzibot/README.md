@@ -16,7 +16,7 @@ Create a new screen session > screen -S zalzibot
 
 Run the following one-liner
 
-sudo apt-get install python3-venv -y && python3 -m venv zalzibot && source zalzibot/bin/activate && python3 -m pip install -r requirements.txt && python zalzibot.py
+sudo apt-get install python3-venv -y && python3 -m venv zalzibot && source zalzibot/bin/activate && python -m pip install -r requirements.txt && python zalzibot.py
 
 When your session is complete, detach from the screen session with keyboard input > Ctrl+a d
 
@@ -24,7 +24,7 @@ When you come back > screen -r zalzibot will reattach your screen session, alrea
 
 #### To Get Updated Repo
 
-screen -r risk_management
+screen -r zalzibot
 
 cd ~/zalzibab_public_suite/zalzibot && git pull && python zalzibot.py
 

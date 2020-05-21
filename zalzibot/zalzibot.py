@@ -45,7 +45,7 @@ while True:
             msg += dict_to_msg(old_data)
 
             msg += 'Current Data'+'\n'
-            msg += dict_to_msg(new_data)
+            msg += dict_to_msg(current_data)
 
             msg += 'Degree of Change'+'\n'
             msg += dict_to_msg(changes)
