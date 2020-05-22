@@ -26,7 +26,6 @@ while True:
 
 
 while True:
-    msg = ''
     date = datetime.utcnow().strftime('%m-%d-%Y %H:%M:%S')
     verification = load_credentials(exchange, my_token, myID);
     logger.info('Loop Started')
@@ -35,11 +34,10 @@ while True:
 
     if os.path.exists('last_trade_recorded'):
         last_trade_recorded = float(load_file('last_trade_recorded'))
-        logger.info('Last Trade Timestamp: '+str(last_trade_recorded))
     else:
         last_trade_recorded = 0
-        logger.info('No Trade History On Record')
     #Fetch Execution History
+    needed_keys = ['market_string', 'market_amount', 'price', 'base_amount', 'market_string', 'base_fee', 'side', 'created_at']
     execution_history = client.get('/v1/user/trades')['trades']
     execution_history = sorted(execution_history, key=itemgetter('created_at'))
     newer_than = execution_history[-1]['order_id']
@@ -52,17 +50,46 @@ while True:
             execution_history.append(temp_data)
             execution_history = sorted(execution_history, key=itemgetter('created_at'))
             newer_than = execution_history[-1]['order_id']
+    for l in range(len(execution_history)):
+        execution_history[l] = {your_key: execution_history[l][your_key] for your_key in needed_keys}
 
+    #Get list of all market_strings with execution history
+    markets_traded = [x['market_string'] for x in execution_history]
+    markets_traded.sort()
+    markets_traded = sorted_list(markets_traded)    
+    partials = {}
+    for m in markets_traded:
+        try:
+            partials[m] = [x for x in [y['trades'] for y in client.orders() if y['market_string'] == m and y['trades'] != None][0]]
+            for l in range(len(partials[m])):
+                partials[m][l].update({'order_type': [x['order_type'] for x in client.orders() if x['market_string'] == m][0]})
+        except IndexError:
+            pass
+    reformatted_partials = {}
+    for m in list(partials.keys()):
+        market_string = m
+        amounts = [float(x['market_amount']) for x in partials[m]]
+        prices = [float(x['price']) for x in partials[m]]
+        market_amount = sum(amounts)
+        avg_price = btc_str(sum(prices[g] * amounts[g] / market_amount for g in range(len(prices))))
+        base_amount = btc_str(sum([float(x['base_amount']) for x in partials[m]]))
+        base_fee = btc_str(sum([float(x['base_fee']) for x in partials[m]]))
+        side = partials[m][-1]['order_type']
+        side_dict = {'sell_limit':'sell', 'buy_limit':'buy'}
+        created_at = partials[m][-1]['created_at']
+        reformatted_partials.update({'market_string': m,
+                                     'market_amount': btc_str(market_amount),
+                                     'price': avg_price,
+                                     'base_amount': base_amount,
+                                     'base_fee': base_fee,
+                                     'side': side_dict[side],
+                                     'created_at': created_at})
+    execution_history.append(reformatted_partials)
     last_executed = tz_to_timestamp(execution_history[-1]['created_at'])
     updated_last_trade = save_file('last_trade_recorded', last_executed);
-    
+
     if last_trade_recorded != last_executed:
         logger.info('New Trades Detected')
-        #Get list of all market_strings with execution history
-        markets_traded = [x['market_string'] for x in execution_history]
-        markets_traded.sort()
-        markets_traded = sorted_list(markets_traded)
-
         #Parse Execution History by market and sort by timestamp
         coin_specific_trades = {}
         for x in markets_traded:
@@ -75,9 +102,7 @@ while True:
             coin_specific_dfs.append(pd.DataFrame(data=coin_specific_trades[markets_traded[x]], index=list(range(len(coin_specific_trades[markets_traded[x]])))))
 
         #Reformat DataFrames and save to csv
-        drops = ['id', 'order_id', 'market_id']
         for x in range(len(coin_specific_dfs)):
-            coin_specific_dfs[x] = coin_specific_dfs[x].drop(columns=drops)
             for y in range(len(coin_specific_dfs[x])):
                 coin_specific_dfs[x]['created_at'].iloc[y] = datetime.strftime(datetime.strptime(coin_specific_dfs[x]['created_at'].iloc[y], '%Y-%m-%dT%H:%M:%S.%fZ'), '%m-%d-%Y %H:%M')
             columns = list(coin_specific_dfs[x].columns)
@@ -108,20 +133,14 @@ while True:
         if bot_credentials[0] is not None:
             msg = 'Updated Trades'+'\n'+date+'\n'+'\n'      
             msg += dict_to_msg(all_new_trades)
-            
-            open_orders = client.orders(open=True)
-            wallet_balances = {}
-            balances = client.balances()
-            for k, v in balances.items():
-                if float(balances[k]) > 0:
-                    wallet_balances[k] = float(balances[k])
 
-            for k, v in wallet_balances.items():
-                wallet_balances[k] += sum([float(x['market_amount_remaining']) for x in open_orders if x['order_type'] == 'sell_limit' and x['market_string'][:-4] == k])
-            wallet_balances['BTC'] += sum([float(x['base_amount']) for x in open_orders if x['order_type'] == 'buy_limit'])
-            
-            msg += '\n'+'Final Balances'+'\n'
-            msg += dict_to_msg(wallet_balances)
+            balances = {x:str(y) for x,y in client.balances_merged().items() if float(y)!=0}
+            coins_to_trade = [x for x in balances.keys() if x != 'BTC']
+            for x in coins_to_trade:
+                precision = len(client.tickers[x+'_BTC']['day_volume_market'].split('.')[1])
+                balances[x] = coin_str(balances[x], precision)
+            msg += '\n'+'Final Balances'+'\n'+date+'\n'
+            msg += dict_to_msg(balances)
             telegram_sendText(bot_credentials, msg);
             logger.info('Msg Sent')
             time.sleep(sleep_time(refresh_time))

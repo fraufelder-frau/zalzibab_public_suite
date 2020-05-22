@@ -26,6 +26,7 @@ from mplfinance.original_flavor import candlestick_ohlc
 import warnings
 warnings.filterwarnings("ignore")
 import matplotlib.dates as mdates
+import random
 
 
 def btc_float_round(value):
@@ -36,6 +37,12 @@ def btc_float_round(value):
 def btc_str2float_round(value):
     rounded_value = round(float(value), 8)
     return rounded_value
+
+
+#Legible format for BTC values
+def coin_str(value, precision):
+    value = str(round(float(value), precision))
+    return value
 
 
 #Legible format for BTC values
@@ -277,9 +284,8 @@ def create_directory(directory):
     return None
 
 
-def sleep_time(count):
-    time_to_sleep = count - datetime.utcnow().minute % count
-    sleep_time = time_to_sleep*60
+def sleep_time(step):
+    sleep_time = ((datetime.utcnow()+timedelta(minutes=step)).replace(second=0, microsecond=0)-datetime.utcnow()).total_seconds()
     return sleep_time
 
 
