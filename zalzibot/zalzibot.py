@@ -66,8 +66,10 @@ while True:
         msg = 'Daily Update'
         open_interest(bitmex_contracts, filenames, date, chart_directory)
         open_value(bitmex_contracts, filenames, date, chart_directory)
+        time.sleep(2)
         bitmex_daily(bitmex_contracts, filenames, date, chart_directory)
         ftx_daily(ftx_contracts, filenames, date, chart_directory)
+        time.sleep(2)
         bybit_daily(bybit_contracts, filenames, date, chart_directory)
         daily_volume(filenames, date, chart_directory)
         logger.info('Daily Charts Sent')

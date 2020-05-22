@@ -468,7 +468,6 @@ def bitmex_daily(contracts, filenames, date, chart_directory):
     for x in bitmex_contract_list:
         resp = requests.get('https://www.bitmex.com/api/v1/trade/bucketed?binSize=1d&partial=false&symbol='+x+'&count=1&reverse=false&startTime='+startTime+'&endTime='+startTime).json()[0]
         bitmex_daily_returns.append((x, round((resp['close']-resp['open'])/resp['open']*100, 2)))
-
     labels, ys = zip(*bitmex_daily_returns)
     xs = np.arange(len(labels)) 
     width = 0.8
