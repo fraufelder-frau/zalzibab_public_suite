@@ -45,7 +45,7 @@ while True:
             msg += dict_to_msg(old_data)
 
             msg += 'Current Data'+'\n'
-            msg += dict_to_msg(new_data)
+            msg += dict_to_msg(current_data)
 
             msg += 'Degree of Change'+'\n'
             msg += dict_to_msg(changes)
@@ -66,8 +66,10 @@ while True:
         msg = 'Daily Update'
         open_interest(bitmex_contracts, filenames, date, chart_directory)
         open_value(bitmex_contracts, filenames, date, chart_directory)
+        time.sleep(2)
         bitmex_daily(bitmex_contracts, filenames, date, chart_directory)
         ftx_daily(ftx_contracts, filenames, date, chart_directory)
+        time.sleep(2)
         bybit_daily(bybit_contracts, filenames, date, chart_directory)
         daily_volume(filenames, date, chart_directory)
         logger.info('Daily Charts Sent')
@@ -76,7 +78,4 @@ while True:
         for x in filenames:
             telegram_sendImage(bot_credentials, x)
     time.sleep(sleep_time('hour', 1, 5, 0))
-
-
-
 
