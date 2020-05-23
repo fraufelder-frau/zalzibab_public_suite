@@ -39,32 +39,29 @@ def btc_str2float_round(value):
     return rounded_value
 
 
-#Legible format for BTC values
 def coin_str(value, precision):
     value = str(round(float(value), precision))
     return value
 
 
-#Legible format for BTC values
 def btc_str(value):
     value = "{:,.8f}".format(value)
     return value
 
 
-#Legible format for USD values
 def usd_str(value):
     if '.' in str(value):
-        if value < 0:
-            value = value*-1
-            value = '-'+"${:,.2f}".format(value)
+        if float(value) < 0:
+            value = float(value)*-1
+            value = '-'+"${:,.2f}".format(float(value))
         else:
-            value = "${:,.2f}".format(value)
+            value = "${:,.2f}".format(float(value))
     else:
-        if value < 0:
-            value = value*-1
-            value = '-'+"${:,}".format(value)
+        if float(value) < 0:
+            value = float(value)*-1
+            value = '-'+"${:,}".format(float(value))
         else:
-            value = "${:,}".format(value)
+            value = "${:,}".format(float(value))
     return value
 
 
@@ -78,100 +75,153 @@ def tz_to_str(tz_date, str_format):
     return str_time
 
 
-def find_file(file_type):
-    f = []
-    if file_type == 'credentials':
-        file_path = str(sys.path[0])+'/credentials'
+def verify_credentials(exchange, bot):
+    try:
+        credentials = load_file(exchange+'_credentials')
+    except FileNotFoundError:
+        print('Creating '+exchange+' Credentials File'+'\n')
+        while True:
+                credentials = {'exchange': exchange,
+                               'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> '))}
+                if exchange != 'qTrade':
+                    credentials.update({'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> '))})
+                if exchange == 'Bitmex':
+                        client = bitmex(test=False,api_key=credentials['api_key'],
+                                        api_secret=credentials['api_secret']);
+                        try:
+                            print('\n'+'Testing Bitmex Credentials'+'\n')
+                            client.User.User_getWalletHistory().result();
+                        except bravado.exception.HTTPError:
+                            print('Invalid Credentials'+'\n')
+                            continue
+                        else:
+                            print('Bitmex Credentials Verified'+'\n')
+                            break
+                elif exchange == 'Bybit':
+                    client = bybit(test=False,api_key=credentials['api_key'],
+                                   api_secret=credentials['api_secret']);
+                    resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
+                    if resp == 'invalid api_key':
+                        print('Invalid Credentials'+'\n')
+                        continue
+                    else:
+                        print('Bybit Credentials Verified'+'\n')
+                        break
+                elif exchange == 'qTrade':
+                    client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
+                    try:
+                        client.get("/v1/user/me")
+                    except:
+                        print('Invalid Credentials'+'\n')
+                        continue
+                    else:
+                        print('qTrade Credentials Verified'+'\n')
+                        break
+        save_file(exchange+'_credentials', credentials)
+
     else:
-        file_path = str(sys.path[0])+'/configurations'
-    for (dirpath, dirnames, filenames) in walk(file_path):
-        f.extend(filenames)
-        return f
-
-
-def check_credentials(exchange):
-    while True:
-        credentials_file = [x for x in find_file('credentials') if exchange in x][0]
-        credentials = load_file(str(sys.path[0])+'/credentials/'+credentials_file)
-        print('\n')
-        if credentials['api_key'] == 'XXX':
-            print('Please Enter Your '+exchange+' API Key')
-            credentials['api_key'] = str(input('> '))
-        else:
-            print('Change Your '+exchange+' API Key?')
-            resp = y_n_prompt()
-            if resp == 'Yes':
-                print('\n')
-                print('Please Enter Your '+exchange+' API Key')
-                credentials['api_key'] = str(input('> '))
-                print('\n')
-        if credentials['bot_token'] == 'YYY' or credentials['bot_chatID'] == 'ZZZ':
-            print('\n')
-            print('Integrate Telegram Bot?')
-            resp = y_n_prompt()
-            if resp == 'Yes':
-                print('\n')
-                print('Please Enter Your Bot Token')
-                credentials['bot_token'] = str(input('> '))
-                print('\n')
-                print('Please Enter Your Telegram Chat ID')
-                credentials['bot_chatID'] = str(input('> '))
-                if telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok'] == False:
-                    print('Invalid Bot Credentials'+'\n')
-                    continue
-                else:
-                    print('\n'+'Confirm Test Message Receipt')
-                    resp = y_n_prompt()
-                    if resp == 'No':
+        print('Change Existing '+exchange+' Credentials?')
+        resp = y_n_prompt()
+        if resp == 'No':
+            while True:
+                credentials = load_file(exchange+'_credentials')
+                if exchange == 'Bitmex':
+                    client = bitmex(test=False,api_key=credentials['api_key'],
+                                    api_secret=credentials['api_secret']);
+                    try:
+                        print('\n'+'Testing Bitmex Credentials'+'\n')
+                        client.User.User_getWalletHistory().result();
+                    except bravado.exception.HTTPError:
+                        print('Invalid Credentials'+'\n')
+                        credentials = {'exchange': exchange,
+                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> ')),
+                                       'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> ')),}
+                        save_file(exchange+'_credentials', credentials)
                         continue
                     else:
-                        print('Bot Credentials Verified'+'\n')
-        else:
-            print('\n')
-            print('Change Your Bot?')
-            resp = y_n_prompt()
-            if resp == 'Yes':
-                print('\n')
-                print('Please Enter Your Bot Token')
-                credentials['bot_token'] = str(input('> '))
-                print('\n')
-                print('Please Enter Your Telegram Chat ID')
-                credentials['bot_chatID'] = str(input('> '))
-                if telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok'] == False:
-                    print('Invalid Bot Credentials'+'\n')
-                    continue
-                else:
-                    print('\n'+'Confirm Test Message Receipt')
-                    resp = y_n_prompt()
-                    if resp == 'No':
+                        print('Bitmex Credentials Verified'+'\n')
+                        break
+                elif exchange == 'Bybit':
+                    client = bybit(test=False,api_key=credentials['api_key'],
+                                   api_secret=credentials['api_secret']);
+                    resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
+                    if resp == 'invalid api_key':
+                        print('Invalid Credentials'+'\n')
+                        credentials = {'exchange': exchange,
+                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> ')),
+                                       'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> ')),}
+                        save_file(exchange+'_credentials', credentials)
                         continue
                     else:
-                        print('Bot Credentials Verified'+'\n')
-        save_credentials = save_file(str(sys.path[0])+'/credentials/'+credentials_file, credentials)
+                        print('Bybit Credentials Verified'+'\n')
+                        break
+                elif exchange == 'qTrade':
+                    client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
+                    try:
+                        client.get("/v1/user/me")
+                    except:
+                        print('Invalid Credentials'+'\n')
+                        credentials = {'exchange': exchange,
+                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> '))}
+                        save_file(exchange+'_credentials', credentials)
+                        continue
+                    else:
+                        print('qTrade Credentials Verified'+'\n')
+                        break
+    while bot:
+        credentials = load_file(exchange+'_credentials')
         try:
-            client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
-            client.get("/v1/user/me")
-        except:
-            print('Invalid Credentials'+'\n')
-            continue
+            credentials['bot_token'] == True
+        except KeyError:
+            credentials.update({'bot_token': str(input('Input Your Telegram Bot API Key'+'\n'+'> ')),
+                               'bot_chatID': str(input('Input Your Telegram User ChatID'+'\n'+'> ')),})
+            test_msg = telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok']
+            if test_msg:
+                print('\n'+'Confirm Test Message Receipt')
+                resp = y_n_prompt()
+                if resp == 'No':
+                    print('Try Again'+'\n')
+                    continue
+                else:
+                    print('Bot Credentials Verified'+'\n')
+                    save_file(exchange+'_credentials', credentials)
+                    bot = (credentials['bot_token'], credentials['bot_chatID'])
+            else:
+                print('Test Message Failed. Reenter Bot Credentials'+'\n')
+                continue
+        else:
+            print('Change Existing Bot Credentials?')
+            resp = y_n_prompt()
+            if resp == 'Yes':
+                credentials['bot_token'] = str(input('Input Your Telegram Bot API Key'+'\n'+'> '))
+                credentials['bot_chatID'] = str(input('Input Your Telegram User ChatID'+'\n'+'> '))
+                test_msg = telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok']
+                if test_msg:
+                    print('\n'+'Confirm Test Message Receipt')
+                    resp = y_n_prompt()
+                    if resp == 'No':
+                        print('Try Again'+'\n')
+                        continue
+                    else:
+                        print('Bot Credentials Verified'+'\n')
+                        save_file(exchange+'_credentials', credentials)
+                        bot = (credentials['bot_token'], credentials['bot_chatID'])
+                else:
+                    print('Test Message Failed. Reenter Bot Credentials'+'\n')
+                    continue
+            else:
+                bot = (credentials['bot_token'], credentials['bot_chatID'])
         break
-        save_credentials = save_file(str(sys.path[0])+'/credentials/'+credentials_file, credentials)
-    return print('\n'+exchange+' Credentials Verified')
+            
+    return client, bot
 
 
-def load_credentials(exchange, my_token, myID):
-    credentials_file = [x for x in find_file('credentials') if exchange in x][0]
-    credentials = load_file(str(sys.path[0])+'/credentials/'+credentials_file)
+def load_credentials(exchange, bot):
+    credentials = load_file(exchange+'_credentials')
     client = QtradeAPI('https://api.qtrade.io', key=credentials['api_key'])
-    if credentials['bot_token'] == 'YYY':
-        my_token = None
-    else:
-        my_token = credentials['bot_token']
-    if credentials['bot_chatID'] == 'ZZZ':
-        myID = None
-    else:
-        myID = credentials['bot_chatID']
-    return client, (my_token, myID)
+    if bot == True:
+        bot = (credentials['bot_token'], credentials['bot_chatID'])
+    return client, bot
 
 
 #Telegram Text Alert
@@ -204,7 +254,6 @@ def telegram_sendFile(bot_credentials, file):
     return r
 
 
-#Read .txt files
 def load_file(file):
     temp_list = []
     f = open(file, "r")
@@ -274,14 +323,6 @@ def list_user_prompt(initial_dialogue, list_to_view):
             print('Selection: '+str(resp))
             break
     return resp
-
-
-def create_directory(directory):
-    if os.path.exists(str(sys.path[0])+'/'+directory+'/') == False:
-        directory = directory
-        path = os.path.join(str(sys.path[0]), directory)
-        os.mkdir(path)
-    return None
 
 
 def sleep_time(step):

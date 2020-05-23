@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-#Import libraries
 from MyFunctions import *
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, filename=sys.path[0]+'/trade_history.log', format='%(asctime)s :: %(levelname)s :: %(message)s')
-import warnings
-warnings.simplefilter("ignore")
 
 
+print('Integrate Telegram Bot?')
+use_bot = y_n_prompt()
+if use_bot == 'Yes':
+    bot = True
+else:
+    bot = False
+print('\n')
 exchange = 'qTrade'
-my_token = ''
-myID = ''
-verification = check_credentials(exchange)
-create_directory('reports')
-csv_directory = str(sys.path[0])+'/reports/'
+check = verify_credentials(exchange, bot)
 while True:
     try:
         refresh_time = int(input('Number of minutes between order updates'+'\n'+'> '))
@@ -27,10 +24,9 @@ while True:
 
 while True:
     date = datetime.utcnow().strftime('%m-%d-%Y %H:%M:%S')
-    verification = load_credentials(exchange, my_token, myID);
-    logger.info('Loop Started')
-    client = verification[0]
-    bot_credentials = verification[1]
+    credentials = load_credentials(exchange, bot)
+    client = credentials[0]
+    bot_credentials = credentials[1]
 
     if os.path.exists('last_trade_recorded'):
         last_trade_recorded = float(load_file('last_trade_recorded'))
@@ -84,12 +80,12 @@ while True:
                                      'base_fee': base_fee,
                                      'side': side_dict[side],
                                      'created_at': created_at})
-    execution_history.append(reformatted_partials)
+    if len(reformatted_partials) > 0:
+        execution_history.append(reformatted_partials)
     last_executed = tz_to_timestamp(execution_history[-1]['created_at'])
     updated_last_trade = save_file('last_trade_recorded', last_executed);
 
     if last_trade_recorded != last_executed:
-        logger.info('New Trades Detected')
         #Parse Execution History by market and sort by timestamp
         coin_specific_trades = {}
         for x in markets_traded:
@@ -108,7 +104,7 @@ while True:
             columns = list(coin_specific_dfs[x].columns)
             columns = columns[-1:] + columns[:-1]
             coin_specific_dfs[x] = coin_specific_dfs[x][columns]
-            coin_specific_dfs[x].to_csv(csv_directory+markets_traded[x]+'_trades.csv', index=False)
+            coin_specific_dfs[x].to_csv(markets_traded[x]+'_trades.csv', index=False)
 
         new_executions = {}
         for x in markets_traded:
@@ -130,7 +126,7 @@ while True:
                 clean_dict['Price'] = new_executions[x][y]['price']
                 clean_dict['Base'] = new_executions[x][y]['base_amount']
                 all_new_trades.append(clean_dict)
-        if bot_credentials[0] is not None:
+        if bot == True:
             msg = 'Updated Trades'+'\n'+date+'\n'+'\n'      
             msg += dict_to_msg(all_new_trades)
 
@@ -142,9 +138,7 @@ while True:
             msg += '\n'+'Final Balances'+'\n'+date+'\n'
             msg += dict_to_msg(balances)
             telegram_sendText(bot_credentials, msg);
-            logger.info('Msg Sent')
             time.sleep(sleep_time(refresh_time))
     else:
-        logger.info('Loop Completed')
         time.sleep(sleep_time(refresh_time))
 
