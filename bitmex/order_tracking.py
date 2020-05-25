@@ -16,6 +16,11 @@ from string import Template
 import pytz
 
 
+def compare_times(time1, time2):
+    temp = datetime.timestamp(time1.replace(tzinfo=pytz.timezone('UTC'))) > datetime.timestamp(time2.replace(tzinfo=pytz.timezone('UTC')))
+    return temp
+
+
 def verify_credentials(exchange, bot):
     try:
         credentials = load_file(exchange+'_credentials')
@@ -395,14 +400,14 @@ while True:
         resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': symbol})).result()[0][0]
         last_recorded = exchange+'_'+symbol+'_last_recorded'
         if os.path.exists(last_recorded):
-            last_trade = load_last_trade(last_recorded)
+            last_trade = load_last_trade(last_recorded).replace(tzinfo=pytz.timezone('UTC'))
         else:
             last_trade = last_trade_filled - timedelta(minutes=1)
-        if datetime.timestamp(last_trade_filled) > datetime.timestamp(last_trade):
+        if compare_times(last_trade_filled, last_trade):
             ###Pull all execution history since last recorded trade
             trade_history = []
-            startTime = last_trade
-            while datetime.timestamp(last_trade_filled) > datetime.timestamp(startTime):
+            startTime = last_trade.replace(tzinfo=pytz.timezone('UTC'))
+            while datetime.timestamp(last_trade_filled.replace(tzinfo=pytz.timezone('UTC'))) > datetime.timestamp(startTime.replace(tzinfo=pytz.timezone('UTC'))):
                 temp_data = client.Execution.Execution_get(symbol=symbol, startTime=startTime, count=500, reverse=True, filter = json.dumps({'ordStatus': 'Filled', 'execType': 'Trade'})).result()[0]
                 trade_history += temp_data
                 startTime = trade_history[0]['timestamp']
@@ -452,6 +457,10 @@ while True:
                     telegram_sendText(bot_credentials, msg);
                 else:
                     telegram_sendText(bot_credentials, 'Msg Too Long')
+    print('Complete')
     time.sleep(sleep_time(sleeper))
     continue
+
+
+
 
