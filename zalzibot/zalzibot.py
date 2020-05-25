@@ -79,6 +79,3 @@ while True:
             telegram_sendImage(bot_credentials, x)
     time.sleep(sleep_time('hour', 1, 5, 0))
 
-
-
-
