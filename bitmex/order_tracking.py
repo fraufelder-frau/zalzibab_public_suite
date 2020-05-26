@@ -457,10 +457,5 @@ while True:
                     telegram_sendText(bot_credentials, msg);
                 else:
                     telegram_sendText(bot_credentials, 'Msg Too Long')
-    print('Complete')
     time.sleep(sleep_time(sleeper))
-    continue
-
-
-
 
