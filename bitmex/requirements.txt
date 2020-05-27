@@ -1,7 +1,8 @@
 attrs==19.3.0
 bitmex==0.2.2
-bravado==10.6.1
+bravado==10.4.1
 bravado-core==5.17.0
+bybit==0.2.2
 certifi==2020.4.5.1
 chardet==3.0.4
 idna==2.9
@@ -23,6 +24,6 @@ six==1.15.0
 strict-rfc3339==0.7
 swagger-spec-validator==2.6.0
 typing-extensions==3.7.4.2
-urllib3==1.25.9
+urllib3==1.24.2
 webcolors==1.11.1
 zipp==3.1.0

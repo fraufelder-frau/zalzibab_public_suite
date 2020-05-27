@@ -3,6 +3,8 @@
 
 from datetime import datetime, timedelta, timezone
 from bitmex import bitmex
+from bybit import bybit
+from qtrade_client.api import QtradeAPI
 import requests
 import ast
 import os
@@ -10,166 +12,136 @@ import json
 import warnings
 warnings.simplefilter("ignore")
 import bravado.exception
+rate_limit = bravado.exception.HTTPTooManyRequests
 import time
 import sys
-from string import Template
 import pytz
+from json import JSONEncoder
 
 
-def compare_times(time1, time2):
-    temp = datetime.timestamp(time1.replace(tzinfo=pytz.timezone('UTC'))) > datetime.timestamp(time2.replace(tzinfo=pytz.timezone('UTC')))
-    return temp
-
-
-def verify_credentials(exchange, bot):
-    try:
-        credentials = load_file(exchange+'_credentials')
-    except FileNotFoundError:
-        print('Creating '+exchange+' Credentials File'+'\n')
-        while True:
-                credentials = {'exchange': exchange,
-                               'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> '))}
-                if exchange != 'qTrade':
-                    credentials.update({'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> '))})
-                if exchange == 'Bitmex':
-                        client = bitmex(test=False,api_key=credentials['api_key'],
-                                        api_secret=credentials['api_secret']);
-                        try:
-                            print('\n'+'Testing Bitmex Credentials'+'\n')
-                            client.User.User_getWalletHistory().result();
-                        except bravado.exception.HTTPError:
-                            print('Invalid Credentials'+'\n')
-                            continue
-                        else:
-                            print('Bitmex Credentials Verified'+'\n')
-                            break
-                elif exchange == 'Bybit':
-                    client = bybit(test=False,api_key=credentials['api_key'],
-                                   api_secret=credentials['api_secret']);
-                    resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
-                    if resp == 'invalid api_key':
-                        print('Invalid Credentials'+'\n')
-                        continue
-                    else:
-                        print('Bybit Credentials Verified'+'\n')
-                        break
-                elif exchange == 'qTrade':
-                    client = QtradeAPI('https://client.qtrade.io', key=credentials['api_key'])
-                    try:
-                        client.get("/v1/user/me")
-                    except:
-                        print('Invalid Credentials'+'\n')
-                        continue
-                    else:
-                        print('qTrade Credentials Verified'+'\n')
-                        break
-        save_file(exchange+'_credentials', credentials)
-
-    else:
-        print('Change Existing '+exchange+' Credentials?')
-        resp = y_n_prompt()
-        if resp == 'No':
-            while True:
-                credentials = load_file(exchange+'_credentials')
-                if exchange == 'Bitmex':
-                    client = bitmex(test=False,api_key=credentials['api_key'],
-                                    api_secret=credentials['api_secret']);
-                    try:
-                        print('\n'+'Testing Bitmex Credentials'+'\n')
-                        client.User.User_getWalletHistory().result();
-                    except bravado.exception.HTTPError:
-                        print('Invalid Credentials'+'\n')
-                        credentials = {'exchange': exchange,
-                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> ')),
-                                       'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> ')),}
-                        save_file(exchange+'_credentials', credentials)
-                        continue
-                    else:
-                        print('Bitmex Credentials Verified'+'\n')
-                        break
-                elif exchange == 'Bybit':
-                    client = bybit(test=False,api_key=credentials['api_key'],
-                                   api_secret=credentials['api_secret']);
-                    resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
-                    if resp == 'invalid api_key':
-                        print('Invalid Credentials'+'\n')
-                        credentials = {'exchange': exchange,
-                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> ')),
-                                       'api_secret': str(input('Input Your '+exchange+' API Secret'+'\n'+'> ')),}
-                        save_file(exchange+'_credentials', credentials)
-                        continue
-                    else:
-                        print('Bybit Credentials Verified'+'\n')
-                        break
-                elif exchange == 'qTrade':
-                    client = QtradeAPI('https://client.qtrade.io', key=credentials['api_key'])
-                    try:
-                        client.get("/v1/user/me")
-                    except:
-                        print('Invalid Credentials'+'\n')
-                        credentials = {'exchange': exchange,
-                                       'api_key': str(input('Input Your '+exchange+' API Key'+'\n'+'> '))}
-                        save_file(exchange+'_credentials', credentials)
-                        continue
-                    else:
-                        print('qTrade Credentials Verified'+'\n')
-                        break
-    while bot:
-        credentials = load_file(exchange+'_credentials')
+def generate_credentials(exchange, bot):
+    while True:
         try:
-            credentials['bot_token'] == True
-        except KeyError:
-            credentials.update({'bot_token': str(input('Input Your Telegram Bot API Key'+'\n'+'> ')),
-                               'bot_chatID': str(input('Input Your Telegram User ChatID'+'\n'+'> ')),})
-            test_msg = telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok']
-            if test_msg:
-                print('\n'+'Confirm Test Message Receipt')
+            master_credentials = json_read('credentials')
+        except FileNotFoundError:
+            print('Creating Credentials File'+'\n')
+            credentials = exchange_credentials(exchange)
+            json_write('credentials', credentials)
+            credentials = json_read('credentials')[exchange]
+            break
+        else:
+            try:
+                credentials = master_credentials[exchange]
+            except KeyError:
+                print('Creating '+exchange+' Credentials'+'\n')
+                master_credentials.update(exchange_credentials(exchange))
+                json_write('credentials', master_credentials)
+                credentials = master_credentials[exchange]
+                break
+            else:
+                print(exchange+' Credentials Detected'+'\n'+'Change Current Credentials?'+'\n')
                 resp = y_n_prompt()
                 if resp == 'No':
-                    print('Try Again'+'\n')
-                    continue
+                    break
                 else:
-                    print('Bot Credentials Verified'+'\n')
-                    save_file(exchange+'_credentials', credentials)
-                    bot = (credentials['bot_token'], credentials['bot_chatID'])
+                    credentials = exchange_credentials(exchange)
+                    master_credentials[exchange]['api_key'] = credentials[exchange]['api_key']
+                    if exchange != 'qTrade':
+                        master_credentials[exchange]['api_secret'] = credentials[exchange]['api_secret']
+                    json_write('credentials', master_credentials)
+                    credentials = json_read('credentials')[exchange]
+                    break
+    if bot:
+        print('\n')
+        while True:
+            try:
+                bot_credentials = (credentials['bot_token'], credentials['bot_chatID'])
+            except KeyError:
+                print('Creating New '+exchange+' Telegram Bot Credentials'+'\n')
+                credentials = create_tg_bot(credentials)
+                master_credentials = json_read('credentials')
+                master_credentials[exchange].update(credentials)
+                json_write('credentials', master_credentials)
+                credentials = json_read('credentials')[exchange]
+                break
             else:
-                print('Test Message Failed. Reenter Bot Credentials'+'\n')
-                continue
-        else:
-            print('Change Existing Bot Credentials?')
+                print('Bot Credentials Detected'+'\n'+'Change Current Bot?'+'\n')
+                resp = y_n_prompt()
+                if resp == 'No':
+                    break
+                else:
+                    credentials = create_tg_bot(credentials)
+                    master_credentials = json_read('credentials')
+                    master_credentials[exchange].update(credentials)
+                    json_write('credentials', master_credentials)
+                    credentials = json_read('credentials')[exchange]
+                    break
+    
+    return credentials
+
+
+def create_tg_bot(credentials):
+    while True:
+        credentials.update({'bot_token': str(input('Input Your Telegram Bot API Key'+'\n'+'> ')),
+                            'bot_chatID': str(input('Input Your Telegram User ChatID'+'\n'+'> ')),})
+        test_msg = telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok']
+        if test_msg:
+            print('\n'+'Confirm Test Message Receipt')
             resp = y_n_prompt()
-            if resp == 'Yes':
-                credentials['bot_token'] = str(input('Input Your Telegram Bot API Key'+'\n'+'> '))
-                credentials['bot_chatID'] = str(input('Input Your Telegram User ChatID'+'\n'+'> '))
-                test_msg = telegram_sendText((credentials['bot_token'], credentials['bot_chatID']), 'Testing')['ok']
-                if test_msg:
-                    print('\n'+'Confirm Test Message Receipt')
-                    resp = y_n_prompt()
-                    if resp == 'No':
-                        print('Try Again'+'\n')
-                        continue
-                    else:
-                        print('Bot Credentials Verified'+'\n')
-                        save_file(exchange+'_credentials', credentials)
-                        bot = (credentials['bot_token'], credentials['bot_chatID'])
-                else:
-                    print('Test Message Failed. Reenter Bot Credentials'+'\n')
-                    continue
+            if resp == 'No':
+                print('Try Again'+'\n')
+                continue
             else:
-                bot = (credentials['bot_token'], credentials['bot_chatID'])
-        break
-            
-    return client, bot
+                print('Bot Credentials Verified'+'\n')
+                break
+        else:
+            print('Test Message Failed. Reenter Bot Credentials'+'\n')
+            continue
+    return credentials
 
 
-class DeltaTemplate(Template):
-    delimiter = "%"
-def strfdelta(tdelta, fmt):
-    d = {"D": tdelta.days}
-    d["H"], rem = divmod(tdelta.seconds, 3600)
-    d["M"], d["S"] = divmod(rem, 60)
-    t = DeltaTemplate(fmt)
-    return t.substitute(**d)
+def exchange_credentials(exchange):
+    if exchange == 'qTrade':
+        while True:
+            credentials = {exchange: {'api_key': str(input('Input Your qTrade API Key'+'\n'+'> '))}}
+            client = QtradeAPI('https://api.qtrade.io', key=credentials[exchange]['api_key'])
+            try:
+                client.get("/v1/user/me")
+            except:
+                print('Invalid Credentials'+'\n')
+                continue
+            else:
+                print('qTrade Credentials Verified'+'\n')
+                break
+    elif exchange == 'Bybit':
+        while True:
+            credentials = {exchange: {'api_key': str(input('Input Your Bybit API Key'+'\n'+'> ')),
+                                      'api_secret': str(input('Input Your Bybit API Secret'+'\n'+'> '))}}
+            client = bybit(test=False,api_key=credentials[exchange]['api_key'],
+                           api_secret=credentials[exchange]['api_secret'])
+            resp = client.APIkey.APIkey_info().result()[0]['ret_msg'];
+            if resp == 'invalid api_key':
+                print('Invalid Credentials'+'\n')
+                continue
+            else:
+                print('Bybit Credentials Verified'+'\n')
+                break
+    elif exchange == 'Bitmex':
+        while True:
+            credentials = {exchange: {'api_key': str(input('Input Your Bitmex API Key'+'\n'+'> ')),
+                                      'api_secret': str(input('Input Your Bitmex API Secret'+'\n'+'> '))}}
+            client = bitmex(test=False,api_key=credentials[exchange]['api_key'],
+                            api_secret=credentials[exchange]['api_secret']);
+            try:
+                print('\n'+'Testing Bitmex Credentials'+'\n')
+                client.User.User_getWalletHistory().result();
+            except bravado.exception.HTTPError:
+                print('Invalid Credentials'+'\n')
+                continue
+            else:
+                print('Bitmex Credentials Verified'+'\n')
+                break
+    return credentials
 
 
 def usd_str(value):
@@ -198,24 +170,6 @@ def pct_str(value):
 def btc_round(value):
     rounded_value = round(float(value), 8)
     return float(rounded_value)
-
-
-#Read .txt files
-def load_file(file):
-    temp_list = []
-    f = open(file, "r")
-    for x in f:
-        temp_list.append(x.rstrip('\n'))
-    load = [ast.literal_eval(i) for i in temp_list][0]
-    f.close()
-    return load
-
-
-#Write to .txt file
-def save_file(file, item):
-    with open(file, mode="w") as outfile:
-        outfile.write(str(item))
-    return None
 
 
 def y_n_prompt():
@@ -247,19 +201,6 @@ def list_prompt(initial_dialogue, list_to_view):
             print('Selection: '+str(resp)+'\n')
             break
     return resp
-
-
-def print_dict(dict_item):
-    try:
-        for x in range(len(dict_item)):
-            for k, v in dict_item[x].items():
-                print(str(k)+': '+str(v))
-            print('\n')
-    except KeyError:
-        for k, v in dict_item.items():
-            print(str(k)+': '+str(v))
-        print('\n')
-    return None
 
 
 #Telegram Text Alert
@@ -302,12 +243,8 @@ def sleep_time(sleeper):
     return sleep_time
 
 
-def diff_month(d1, d2):
-    return (d1.year - d2.year) * 12 + d1.month - d2.month + 1
-
-
 def load_credentials(exchange, bot):
-    credentials = load_file(exchange+'_credentials')
+    credentials = json_read('credentials')[exchange]
     if exchange == 'Bitmex':
         client = bitmex(test=False,api_key=credentials['api_key'],api_secret=credentials['api_secret']) 
     elif exchange == 'Bybit':
@@ -323,23 +260,6 @@ def list_to_dict(list_item):
     temp = {}
     for x,y in enumerate(list_item):
         temp[(x+1)] = y
-    return temp
-
-
-def get_key(val, my_dict): 
-    for k, v in my_dict.items(): 
-         if val == v: 
-            return k 
-
-
-def load_last_trade(file):
-    temp = load_file(file)
-    temp = datetime(temp[0], temp[1], temp[2], temp[3], temp[4], temp[5], temp[6])
-    return temp
-
-
-def save_last_trade(file, time):
-    temp = save_file(file,'({dt.year},{dt.month},{dt.day},{dt.hour},{dt.minute},{dt.second},{dt.microsecond})'.format(dt = time))
     return temp
 
 
@@ -370,6 +290,38 @@ def sleep_selection():
     return timeframe, count
 
 
+def DecodeDateTime(empDict):
+    if '+00:00' in empDict['LastFilled']:
+        empDict['LastFilled'] = datetime.strptime(empDict['LastFilled'][:-6], '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.timezone('UTC'))
+    else:
+        empDict['LastFilled'] = datetime.strptime(empDict['LastFilled'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=pytz.timezone('UTC'))
+    return empDict
+
+
+def json_write(file, item):
+    with open(file, mode="w") as outfile:
+        json.dump(item, outfile)
+    return None
+
+
+class DateTimeEncoder(JSONEncoder):
+    #Override the default method
+    def default(self, obj):
+        if isinstance(obj, (datetime, datetime)):
+            return obj.isoformat()
+
+
+def json_read(file):
+    with open(file, 'r') as fp:
+        data = json.load(fp)
+    return data
+
+
+"""
+Initial startup query string
+Generate/read/save credentials
+Set sleep timer for script loop
+"""
 exchange = 'Bitmex'
 print('Integrate '+exchange+' Telegram Bot?')
 use_bot = y_n_prompt()
@@ -378,84 +330,135 @@ if use_bot == 'Yes':
 else:
     bot = False
 print('\n')
-check = verify_credentials(exchange, bot)
+credentials_check = generate_credentials(exchange, bot);
 sleeper = sleep_selection()
+
+
 while True:
-    credentials = load_credentials(exchange, bot)
+    credentials = load_credentials(exchange, bot);
     client = credentials[0]
     bot_credentials = credentials[1]
-    contracts = [x['symbol'] for x in client.Instrument.Instrument_getActive().result()[0] if 'XBT' in x['symbol']]
-    balance = btc_str(client.User.User_getWalletHistory().result()[0][0]['walletBalance']/100000000)
-    open_symbols = []
-    for l in contracts:
+    balance = client.User.User_getWalletHistory().result()[0][0]['walletBalance']/100000000
+    contract_data = {}
+    contracts = [x['symbol'] for x in client.Instrument.Instrument_getActive().result()[0]]
+    for x in contracts:
+        contract_data[x] = {'Contract': x}
         try:
-            resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': l})).result()[0][0]
-        except IndexError:
-            break
-        else:
-            open_symbols.append(resp['symbol'])
+            contract_data[x].update({'LastFilled':  datetime.strftime((client.Execution.Execution_get(symbol=x, count=1, reverse=True, filter = json.dumps({'ordStatus': 'Filled', 'execType': 'Trade'})).result()[0][0]['timestamp']), '%Y-%m-%d %H:%M:%S.%f')})
+        except rate_limit:
+            time.sleep(5)
             continue
-    for symbol in open_symbols:
-        last_trade_filled = client.Execution.Execution_get(symbol=symbol, count=1, reverse=True, filter = json.dumps({'ordStatus': 'Filled', 'execType': 'Trade'})).result()[0][0]['timestamp']
-        resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': symbol})).result()[0][0]
-        last_recorded = exchange+'_'+symbol+'_last_recorded'
-        if os.path.exists(last_recorded):
-            last_trade = load_last_trade(last_recorded).replace(tzinfo=pytz.timezone('UTC'))
-        else:
-            last_trade = last_trade_filled - timedelta(minutes=1)
-        if compare_times(last_trade_filled, last_trade):
-            ###Pull all execution history since last recorded trade
-            trade_history = []
-            startTime = last_trade.replace(tzinfo=pytz.timezone('UTC'))
-            while datetime.timestamp(last_trade_filled.replace(tzinfo=pytz.timezone('UTC'))) > datetime.timestamp(startTime.replace(tzinfo=pytz.timezone('UTC'))):
+        except IndexError:
+            contract_data[x].update({'LastFilled': None})
+    contract_data = {k:v for k,v in contract_data.items() if v['LastFilled'] is not None}
+
+    if os.path.exists('bitmex_contract_data'):
+        master_data = eval(json_read('bitmex_contract_data'))
+        for x in list(master_data.keys()):
+            master_data[x] = DecodeDateTime(master_data[x])
+        for x in list(contract_data.keys()):
+            contract_data[x] = DecodeDateTime(contract_data[x])
+        temp_list1 = list(master_data.values())
+        temp_list2 = list(contract_data.items())
+        contract_data = {x:y for x,y in temp_list2 if y not in temp_list1}
+
+    else:
+        for x in list(contract_data.keys()):
+            contract_data[x] = DecodeDateTime(contract_data[x])
+        master_data = contract_data
+
+    for symbol in list(contract_data.keys()):
+
+        last_recorded = contract_data[symbol]['LastFilled']-timedelta(minutes=1)
+        startTime = last_recorded
+        last_filled = contract_data[symbol]['LastFilled']
+
+        trade_history = []
+        loops = 0
+        while last_filled > startTime:
+            try:
                 temp_data = client.Execution.Execution_get(symbol=symbol, startTime=startTime, count=500, reverse=True, filter = json.dumps({'ordStatus': 'Filled', 'execType': 'Trade'})).result()[0]
                 trade_history += temp_data
                 startTime = trade_history[0]['timestamp']
-                time.sleep(1)
+            except rate_limit:
+                time.sleep(5)
                 continue
-            trade_history = [x for x in trade_history if datetime.timestamp(x['timestamp']) > datetime.timestamp(last_trade)]
-            old_keys = ['side', 'lastQty', 'price', 'ordType', 'homeNotional', 'execComm', 'timestamp']
-            new_keys = ['Side', 'Size', 'Price', 'OrderType', 'BTCvalue', 'Fees', 'Timestamp']
-            for l in range(len(trade_history)):
-                trade_history[l] = {x:y for x,y in trade_history[l].items() if x in old_keys}
-                trade_history[l]['execComm'] = btc_str(trade_history[l]['execComm']/100000000)
+        trade_history = [x for x in trade_history if x['timestamp'] > last_recorded]
+
+        old_keys = ['side', 'lastQty', 'price', 'ordType', 'execComm', 'timestamp']
+        new_keys = ['Side', 'Size', 'Price', 'OrderType', 'Fees', 'Timestamp']
+        if 'USD' in symbol or 'XBT' in symbol:
+            old_keys.append('homeNotional')
+            new_keys.append(symbol[:3]+'value')
+        else:
+            old_keys.append('foreignNotional')
+            new_keys.append('BTCvalue')
+
+        for l in range(len(trade_history)):
+            trade_history[l] = {x:y for x,y in trade_history[l].items() if x in old_keys}
+            trade_history[l]['execComm'] = btc_str(trade_history[l]['execComm']/100000000)
+            trade_history[l]['timestamp'] = datetime.strftime(trade_history[l]['timestamp'], '%m-%d-%Y %H:%M:%S')
+            if 'USD' in symbol or 'XBT' in symbol: 
                 trade_history[l]['price'] = usd_str(trade_history[l]['price'])
-                trade_history[l]['homeNotional'] = btc_str(trade_history[l]['homeNotional'])
-            save_last_trade(last_recorded, trade_history[0]['timestamp'])
-            for l in range(len(trade_history)):
-                for x in range(len(old_keys)):
-                    trade_history[l][new_keys[x]] = trade_history[l].pop(old_keys[x])
-                trade_history[l]['Timestamp'] = datetime.strftime(trade_history[l]['Timestamp'], '%m-%d-%Y %H:%M:%S')
-            ###Get Updated Position Data
-            temp = {'Exchange': exchange,
-                    'Balance': balance,
-                   'Timestamp': datetime.strftime(datetime.utcnow(), '%m-%d-%Y %H:%M:%S')
-                   }
-            if resp['currentQty'] < 0:
-                temp['Side'] = 'Sell'
-            elif resp['currentQty'] > 0:
-                temp['Side'] = 'Buy'
-            if temp['Side'] == 'Short':
-                temp['Size'] = resp['currentQty']*-1
             else:
-                temp['Size'] = resp['currentQty']
-            temp['Entry'] = usd_str(resp['avgEntryPrice'])
-            temp['MarketPrice'] = usd_str(resp['markPrice'])
-            temp['UnrealisedPnL'] = btc_str(resp['unrealisedPnl']/100000000)
-            temp['LastFilled'] = datetime.strftime(last_trade_filled, '%m-%d-%Y %H:%M:%S')
-            temp['TimeSinceLastTrade'] = strfdelta(datetime.utcnow().replace(tzinfo=pytz.timezone('UTC'))-last_trade_filled, '%H Hrs, %M Mins, %S Secs')
-            if bot:
-                msg = 'Last Executed '+symbol+' Orders'+'\n'+'\n'
-                msg += dict_to_msg(trade_history);
+                trade_history[l]['price'] = btc_str(trade_history[l]['price'])
+            if 'USD' in symbol or 'XBT' in symbol:
+                trade_history[l]['homeNotional'] = btc_str(trade_history[l]['homeNotional'])
+            else:
+                trade_history[l]['foreignNotional'] = btc_str(trade_history[l]['foreignNotional'])
+        for l in range(len(trade_history)):
+            for x in range(len(old_keys)):
+                trade_history[l][new_keys[x]] = trade_history[l].pop(old_keys[x])
+                
+        if bot:
+            msg = 'Last Executed '+symbol+' Orders'+'\n'+'\n'
+            msg += dict_to_msg(trade_history);
+        while True:
+            try:
+                resp = client.Position.Position_get(filter = json.dumps({'isOpen': True, 'symbol': symbol})).result()[0][0]
+            except rate_limit:
+                time.sleep(5)
+                continue
+            except IndexError:
+                if bot:
+                    msg += ('All '+symbol+' Positions Closed')
+                    if len(msg) <= 4096:
+                        telegram_sendText(bot_credentials, msg);
+                    else:
+                        telegram_sendText(bot_credentials, 'Msg Too Long')
+                break
+            else:
                 if len(msg) <= 4096:
                     telegram_sendText(bot_credentials, msg);
                 else:
                     telegram_sendText(bot_credentials, 'Msg Too Long')
+                temp = {'Exchange': exchange,
+                        'Balance': balance,
+                       'Timestamp': datetime.strftime(datetime.utcnow(), '%m-%d-%Y %H:%M:%S'),
+                        'Symbol': symbol
+                       }
+                if resp['currentQty'] < 0:
+                    temp['Side'] = 'Short'
+                elif resp['currentQty'] > 0:
+                    temp['Side'] = 'Long'
+                temp['Size'] = resp['currentQty']
+                if 'USD' in symbol:
+                    temp['Entry'] = usd_str(resp['avgEntryPrice'])
+                    temp['MarketPrice'] = usd_str(resp['markPrice'])
+                else:
+                    temp['Entry'] = btc_str(resp['avgEntryPrice'])
+                    temp['MarketPrice'] = btc_str(resp['markPrice'])
+                temp['UnrealisedPnL'] = btc_str(resp['unrealisedPnl']/100000000)
+                                
                 msg = 'Current '+symbol+' Position'+'\n'+'\n'
                 msg += dict_to_msg(temp)
                 if len(msg) <= 4096:
                     telegram_sendText(bot_credentials, msg);
                 else:
                     telegram_sendText(bot_credentials, 'Msg Too Long')
-    time.sleep(sleep_time(sleeper))
+                break
+    for symbol in (contract_data.keys()):
+        master_data[symbol] = contract_data[symbol]
+    json_write('bitmex_contract_data', json.dumps(master_data, cls=DateTimeEncoder))
+    time.sleep(sleep_time(sleeper))        
 
